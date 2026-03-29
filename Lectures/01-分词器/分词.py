@@ -2,7 +2,6 @@ import re
 from typing import List, Callable
 from transformers import pipeline
 
-
 # 1. 深度学习模型初始化
 # 初始化命名实体识别（NER）流水线
 ner_pipeline = pipeline(
@@ -11,13 +10,14 @@ ner_pipeline = pipeline(
     grouped_entities=True  # 将相邻的同类实体片段合并，例如“重”、“庆”合并为“重庆”
 )
 
+
 def ner_mask(text: str) -> str:
     """
     利用深度学习模型进行语义级别的脱敏（人名与地名）
     """
     entities = ner_pipeline(text)
     spans = []
-    
+
     # 提取模型识别出的实体及其位置
     for ent in entities:
         label = ent["entity_group"]
@@ -45,10 +45,10 @@ def ner_mask(text: str) -> str:
     result = []
     last_idx = 0
     for start, end, tag in filtered_spans:
-        result.append(text[last_idx:start]) # 拼接非敏感部分
-        result.append(tag)                  # 拼接占位符
+        result.append(text[last_idx:start])  # 拼接非敏感部分
+        result.append(tag)  # 拼接占位符
         last_idx = end
-    result.append(text[last_idx:])          # 拼接剩余文本
+    result.append(text[last_idx:])  # 拼接剩余文本
 
     return "".join(result)
 
@@ -58,6 +58,7 @@ class DesensitizationPipeline:
     """
     脱敏任务管理器：允许按顺序添加多个处理步骤
     """
+
     def __init__(self):
         self.steps: List[Callable[[str], str]] = []
 
@@ -71,19 +72,23 @@ class DesensitizationPipeline:
             text = step(text)
         return text
 
+
 # 3. 具体处理步骤实现
 def normalize_text(text: str) -> str:
     """文本预处理：去除首尾空格"""
     return text.strip()
+
 
 # 高确定性规则（强特征：手机号、邮箱）
 def mask_phone(text: str) -> str:
     """正则匹配 11 位中国手机号"""
     return re.sub(r'1[3-9]\d{9}', '[PHONE]', text)
 
+
 def mask_email(text: str) -> str:
     """正则匹配常见邮箱格式"""
     return re.sub(r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}', '[EMAIL]', text)
+
 
 # 中确定性规则（基于关键词上下文）
 def mask_address(text: str) -> str:
@@ -93,6 +98,7 @@ def mask_address(text: str) -> str:
         r'\1[PLACE]',
         text
     )
+
 
 # 低确定性规则（基于语法结构的简单兜底）
 def mask_name(text: str) -> str:
@@ -105,6 +111,7 @@ def mask_name(text: str) -> str:
         r'[NAME]\2',
         text
     )
+
 
 def clean_punctuation(text: str) -> str:
     """后处理环节：可根据需求规范化标点符号"""
@@ -137,10 +144,11 @@ def build_pipeline():
 
     return p
 
+
 if __name__ == "__main__":
     # 测试用例：包含人名、邮箱、电话、地名及详细地址
     test_text = "小明的邮箱是test@gmail.com，电话是13312311111，现在居住于重庆两江新区的xxx小区。"
-    
+
     ds_pipeline = build_pipeline()
 
     print("--- 脱敏系统测试 ---")
